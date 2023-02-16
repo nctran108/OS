@@ -7,8 +7,7 @@
 #define CID 30
 #define PROCESS "I am Process C"
 
-int main()
-{
+int main() {
     int shmid[2];
     int size[2] = {sizeof(char), sizeof(int)};
     char *shm;

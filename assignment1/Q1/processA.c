@@ -7,9 +7,7 @@
 #define AID 10
 #define PROCESS "I am Process A"
 
-int main()
-{
-    char c;
+int main() {
     int shmid[2];
     int size[2] = {sizeof(char), sizeof(int)};
     char *shm_char;
