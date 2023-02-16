@@ -1,16 +1,18 @@
 #include <rpc/rpc.h>
 #include "avg.h"
 #include <stdio.h>
+#include <math.h>
 
 /* run locally on 'server' called by a remote client. */
 static double sum_avg;
+static double std;
 
 /* 
  * routine notice the _1 the version number 
  * notice the client handle, not sued here but needs to be 
  * a parameter 
  */
-double * average_1(input_data *input, CLIENT *client) 
+double * std_1(input_data *input, CLIENT *client) 
   {
 
   /* input is paramters were marshalled by genrated routine */
@@ -29,7 +31,17 @@ double * average_1(input_data *input, CLIENT *client)
 
   sum_avg = sum_avg / input->input_data.input_data_len;
 
-  return( &sum_avg );
+  std = 0;
+  dp = input->input_data.input_data_val;
+  for( i = 1; i <= input->input_data.input_data_len; i++ )
+    {
+    std += pow(*dp - sum_avg,2);  /* add what ptrs points  to ( '*' gets content ) */
+    dp++;
+    }
+
+  std = sqrt(std/input->input_data.input_data_len);
+
+  return( &std );
 }
 
 /* 
@@ -40,8 +52,8 @@ double * average_1(input_data *input, CLIENT *client)
  *   where local is (char *(*)(char *, struct svc_req *)) average_1_svc;
  */
  
-double * average_1_svc(input_data *input, struct svc_req *svc) 
+double * std_1_svc(input_data *input, struct svc_req *svc) 
   {
   CLIENT *client;
-  return( average_1( input, client) );
+  return( std_1( input, client) );
   }

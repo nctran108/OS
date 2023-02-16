@@ -3,6 +3,7 @@
 
 
 #include <stdbool.h>
+#include <sys/ipc.h>
 
 #define BLOCK_SIZE 4096
 #define DEFAULT_KEY 12345

@@ -6,21 +6,21 @@
 
 /* local routine client */
 /* prototype can be whatever you want */
-void averageprog_1( char* host, int argc, char *argv[] )
+void stdprog_1( char* host, int argc, char *argv[] )
 {
    CLIENT *clnt; /* client handle, rpc.h included in avg.h from rpcgen */
    int i;
    double 	f,  *result_1, *dp;
    char 	*endptr;
-   input_data  average_1_arg; /* input_data rpc struct */
+   input_data  std_1_arg; /* input_data rpc struct */
 
-   average_1_arg.input_data.input_data_val = (double*) malloc(MAXAVGSIZE*sizeof(double));
+   std_1_arg.input_data.input_data_val = (double*) malloc(MAXAVGSIZE*sizeof(double));
 
    /* pointer to double, beginning of input data */
-   dp = average_1_arg.input_data.input_data_val;
+   dp = std_1_arg.input_data.input_data_val;
    
    /* set number of items */
-   average_1_arg.input_data.input_data_len = argc - 2;
+   std_1_arg.input_data.input_data_len = argc - 2;
 
    for( i = 1; i <= (argc - 2); i++ )
    {
@@ -45,7 +45,7 @@ void averageprog_1( char* host, int argc, char *argv[] )
     * returns a client RPC handle
     */
 
-   clnt = clnt_create( host, AVERAGEPROG, AVERAGEVERS, "udp" );
+   clnt = clnt_create( host, STDPROG, STDERS, "udp" );
 
    /* check if error */
    if (clnt == NULL) 
@@ -70,7 +70,7 @@ void averageprog_1( char* host, int argc, char *argv[] )
     *  than calls the remote routine associated with the client handle
     * so AVERAGEPROG, VERSION 
     */
-   result_1 = average_1( &average_1_arg, clnt );
+   result_1 = std_1( &std_1_arg, clnt );
 
    if (result_1 == NULL) 
       {
@@ -79,12 +79,12 @@ void averageprog_1( char* host, int argc, char *argv[] )
 
    clnt_destroy( clnt );
 
-   printf( "average = %e\n",*result_1 );
+   printf( "std = %e\n",*result_1 );
 }
 
 
 /* here is main */
-main( int argc, char* argv[] )
+int main( int argc, char* argv[] )
 {
    char *host;
 
@@ -103,5 +103,5 @@ main( int argc, char* argv[] )
 
    /* host name is in first parameter (after program name) */
    host = argv[1];
-   averageprog_1( host, argc, argv);
+   stdprog_1( host, argc, argv);
 }
