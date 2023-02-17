@@ -3,45 +3,45 @@
 #include <stdio.h>
 #include <math.h>
 
-/* run locally on 'server' called by a remote client. */
-static double sum_avg;
-static double std;
+void swap(double* a, double* b){
+  double t = *a;
+  *a = *b;
+  *b = t;
+}
 
-/* 
- * routine notice the _1 the version number 
- * notice the client handle, not sued here but needs to be 
- * a parameter 
- */
-double * std_1(input_data *input, CLIENT *client) 
+int partition(double *arr, int low, int high){
+  int pivot = arr[high];
+  int i = low - 1;
+
+  for(int j = low; j <= high - 1; j++) {
+    if (arr[j] < pivot) {
+      i++;
+      swap(&arr[i], &arr[j]);
+    }
+  }
+  swap(&arr[i + 1], &arr[high]);
+  return (i + 1);
+}
+
+void quickSort(double *arr, int low, int high){
+  if (low < high) {
+    int p = partition(arr, low, high);
+    quickSort(arr, low, p - 1);
+    quickSort(arr, p + 1, high);
+  }
+}
+
+
+input_data * sort_1(input_data *input, CLIENT *client) 
   {
 
   /* input is paramters were marshalled by genrated routine */
   /*  a pointer to a double, is set to begining of data array  */
-  double *dp = input->input_data.input_data_val;
+  input_data* dp = input;
 
-  u_int i;
-  sum_avg = 0;
+  quickSort(dp->input_data.input_data_val,0,dp->input_data.input_data_len - 1);
 
-  /* iterate until end of number of times (data_len) */
-  for( i = 1; i <= input->input_data.input_data_len; i++ )
-    {
-    sum_avg = sum_avg + *dp;  /* add what ptrs points  to ( '*' gets content ) */
-    dp++;
-    }
-
-  sum_avg = sum_avg / input->input_data.input_data_len;
-
-  std = 0;
-  dp = input->input_data.input_data_val;
-  for( i = 1; i <= input->input_data.input_data_len; i++ )
-    {
-    std += pow(*dp - sum_avg,2);  /* add what ptrs points  to ( '*' gets content ) */
-    dp++;
-    }
-
-  std = sqrt(std/input->input_data.input_data_len);
-
-  return( &std );
+  return dp;
 }
 
 /* 
@@ -52,8 +52,8 @@ double * std_1(input_data *input, CLIENT *client)
  *   where local is (char *(*)(char *, struct svc_req *)) average_1_svc;
  */
  
-double * std_1_svc(input_data *input, struct svc_req *svc) 
+input_data * sort_1_svc(input_data *input, struct svc_req *svc) 
   {
   CLIENT *client;
-  return( std_1( input, client) );
+  return( sort_1( input, client) );
   }

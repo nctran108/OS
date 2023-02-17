@@ -16,8 +16,8 @@ struct input_data
 
 typedef struct input_data input_data;
 
-program STDPROG {
-    version STDERS {
-        double STD(input_data) = 1;
+program SORTPROG {
+    version SORTERS {
+        input_data SORT(input_data) = 1;
     } = 1;
 } = 4278;

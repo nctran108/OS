@@ -10,24 +10,25 @@ void stdprog_1( char* host, int argc, char *argv[] )
 {
    CLIENT *clnt; /* client handle, rpc.h included in avg.h from rpcgen */
    int i;
-   double 	f,  *result_1, *dp;
+   double 	f, *dp;
    char 	*endptr;
-   input_data  std_1_arg; /* input_data rpc struct */
+   input_data input_1_arg; /* input_data rpc struct */
+   input_data * result_1;
 
-   std_1_arg.input_data.input_data_val = (double*) malloc(MAXAVGSIZE*sizeof(double));
+   input_1_arg.input_data.input_data_val = (double*) malloc(MAXAVGSIZE*sizeof(double));
 
    /* pointer to double, beginning of input data */
-   dp = std_1_arg.input_data.input_data_val;
+   dp = input_1_arg.input_data.input_data_val;
    
    /* set number of items */
-   std_1_arg.input_data.input_data_len = argc - 2;
+   input_1_arg.input_data.input_data_len = argc - 2;
 
    for( i = 1; i <= (argc - 2); i++ )
    {
 	/* str to d ASCII string to floating point nubmer */
  	f = strtod( argv[i+1], &endptr);
 
-        printf("value   = %e\n", f);
+        printf("value   = %lf\n", f);
         *dp = f;
         dp++;
    }
@@ -45,7 +46,7 @@ void stdprog_1( char* host, int argc, char *argv[] )
     * returns a client RPC handle
     */
 
-   clnt = clnt_create( host, STDPROG, STDERS, "udp" );
+   clnt = clnt_create( host, SORTPROG, SORTERS, "udp" );
 
    /* check if error */
    if (clnt == NULL) 
@@ -70,16 +71,24 @@ void stdprog_1( char* host, int argc, char *argv[] )
     *  than calls the remote routine associated with the client handle
     * so AVERAGEPROG, VERSION 
     */
-   result_1 = std_1( &std_1_arg, clnt );
 
-   if (result_1 == NULL) 
+   result_1= sort_1( &input_1_arg, clnt );
+
+   if (result_1->input_data.input_data_val == NULL) 
       {
       clnt_perror(clnt, "call failed:");
       }
 
    clnt_destroy( clnt );
+   double *r = result_1->input_data.input_data_val;
 
-   printf( "std = %e\n",*result_1 );
+   printf("Array [");
+   for(int i = 0; i < input_1_arg.input_data.input_data_len; i++){
+      if (i < input_1_arg.input_data.input_data_len - 1)
+         printf( "%lf ", *(r + i));
+      else
+         printf( "%lf]\n", *(r + i));
+   }
 }
 
 
