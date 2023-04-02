@@ -8,11 +8,11 @@
 #define SIZE 5
 #define NUMB_THREADS 3
 #define NUMB_PROS 3
-#define PRODUCER_LOOPS 2
+#define PRODUCER_LOOPS 1
  
 typedef int buffer_t;
-buffer_t buffer[SIZE];
-int buffer_index;
+//buffer_t buffer[SIZE];
+//int buffer_index;
  
 pthread_mutex_t buffer_mutex;
 /* initially buffer will be empty.  full_sem
@@ -24,18 +24,19 @@ pthread_mutex_t buffer_mutex;
 sem_t full_sem;  /* when 0, buffer is full */
 sem_t empty_sem; /* when 0, buffer is empty. Kind of
                     like an index for the buffer */
+sem_t lock;
  
  
  
-void insertbuffer(buffer_t value) {
-    if (buffer_index < SIZE) {
-        buffer[buffer_index++] = value;
+void insertbuffer(int *buffer, int *buffer_index, buffer_t value) {
+    if (*buffer_index < SIZE) {
+        buffer[*buffer_index++] = value;
     } else {
         printf("Buffer overflow\n");
     }
 }
  
-buffer_t dequeuebuffer() {
+buffer_t dequeuebuffer(int *buffer, int buffer_index) {
     if (buffer_index > 0) {
         return buffer[--buffer_index]; // buffer_index-- would be error!
     } else {
@@ -45,7 +46,7 @@ buffer_t dequeuebuffer() {
 }
  
  
-void *producer(void *thread_n) {
+void producer(int *shm_buffer, int *shm_index, void *thread_n) {
     int thread_numb = *(int *)thread_n;
     buffer_t value;
     int i=0;
@@ -58,34 +59,49 @@ void *producer(void *thread_n) {
            Then the list would be full again
            and when this thread tried to insert to buffer there would be
            a buffer overflow error */
-        pthread_mutex_lock(&buffer_mutex); /* protecting critical section */
-        insertbuffer(value);
-        pthread_mutex_unlock(&buffer_mutex);
+        sem_wait(&lock);
+        //pthread_mutex_lock(&buffer_mutex); /* protecting critical section */
+        insertbuffer(shm_buffer,shm_index,value);
+        //pthread_mutex_unlock(&buffer_mutex);
+        sem_post(&lock);
         sem_post(&empty_sem); // post (increment) emptybuffer semaphore
-        printf("Producer %d and %d added %d to buffer\n", thread_numb, getpid(), value);
+        printf("Producer %d and %d from [parent] %d added %d to buffer\n", thread_numb, getpid(), getppid(), value);
     }
     pthread_exit(0);
 }
  
 void *consumer(void *thread_n) {
     int thread_numb = *(int *)thread_n;
+    int shmid_index = get_id_with_key(DEFAULT_KEY, sizeof(int));
+    int shmid_buffer = get_id_with_key(DEFAULT_KEY + 1, sizeof(int) * SIZE);
+
+    int *shm_index = attach_memory(shmid_index);
+    int *shm_buffer = attach_memory(shmid_buffer);
+    if (!shm_index || !shm_buffer){
+        perror("shmat");
+        exit(1);
+    }
     buffer_t value;
     int i=0;
     while (i++ < PRODUCER_LOOPS) {
         sem_wait(&empty_sem);
+        sem_wait(&lock);
         /* there could be race condition here, that could cause
            buffer underflow error */
-        pthread_mutex_lock(&buffer_mutex);
-        value = dequeuebuffer(value);
-        pthread_mutex_unlock(&buffer_mutex);
+        //pthread_mutex_lock(&buffer_mutex);
+        value = dequeuebuffer(shm_buffer,*shm_index);
+        //pthread_mutex_unlock(&buffer_mutex);
+        sem_post(&lock);
         sem_post(&full_sem); // post (increment) fullbuffer semaphore
-        printf("Consumer %d dequeue %d from buffer\n", thread_numb, value);
-   }
+        printf("Consumer %d in %d dequeue %d from buffer\n", thread_numb, getpid(), value);
+    }
+    if (!detach_memory(shm_index)) printf("cannot detach shared memory %d.\n", shmid_index);
+    if (!detach_memory(shm_buffer)) printf("cannot detach shared memory %d.\n", shmid_buffer);
     pthread_exit(0);
 }
  
 int main(int argc, int **argv) {
-    buffer_index = 0;
+    //buffer_index = 0;
  
     pthread_mutex_init(&buffer_mutex, NULL);
     sem_init(&full_sem, // sem_t *sem
@@ -94,6 +110,12 @@ int main(int argc, int **argv) {
     sem_init(&empty_sem,
              0,
              0);
+    sem_init(&lock,0,1);
+
+    int shmid_index;
+    int shmid_buffer;
+    int *shm_index;
+    buffer_t *shm_buffer;
     /* full_sem is initialized to buffer size because SIZE number of
        producers can add one element to buffer each. They will wait
        semaphore each time, which will decrement semaphore value.
@@ -104,34 +126,48 @@ int main(int argc, int **argv) {
     pthread_t thread[NUMB_THREADS];
     int thread_numb[NUMB_THREADS];
     int thread_pros[NUMB_PROS];
-    int i;
-    pid_t PID;
-    for (i = 0; i < NUMB_PROS; i++) {
-        PID = fork();
-        thread_pros[i] = i;
-        if (PID == 0){
-            pthread_create(thread + i, // pthread_t *t
-                        NULL, // const pthread_attr_t *attr
-                        producer, // void *(*start_routine) (void *)
-                        thread_pros + i);  // void *arg
+    
+    for (int i = 0; i < NUMB_PROS; i++) {
+        shmid_index = get_id_with_key(DEFAULT_KEY, sizeof(int));
+        shmid_buffer = get_id_with_key(DEFAULT_KEY + 1, sizeof(int) * SIZE);
+
+        shm_index = attach_memory(shmid_index);
+        shm_buffer = attach_memory(shmid_buffer);
+        if (!shm_index || !shm_buffer){
+            perror("shmat");
+            exit(1);
         }
-        else{
-            for(int j = 0; j < NUMB_THREADS; j++){
-                thread_numb[i] = j;
-                // playing a bit with thread and thread_numb pointers...
-                pthread_create(&thread[i], // pthread_t *t
-                            NULL, // const pthread_attr_t *attr
-                            consumer, // void *(*start_routine) (void *)
-                            &thread_numb[i]);  // void *arg
-            }
-            for (i = 0; i < NUMB_THREADS; i++)
-                pthread_join(thread[i], NULL);
+        //PID = fork();
+        thread_pros[i] = i;
+        *shm_index = 0;
+        if (fork() == 0){
+            //pthread_create(thread + i,
+            //            NULL,
+            //            producer,
+            //            ,shm_buffer,shm_index,thread_pros + i);
+            producer(shm_buffer,shm_index,thread_pros + i);
+            if (!detach_memory(shm_index)) printf("cannot detach shared memory %d.\n", shmid_index);
+            if (!detach_memory(shm_buffer)) printf("cannot detach shared memory %d.\n", shmid_buffer);
         }
     }
+    for(int j = 0; j < NUMB_THREADS; j++){
+
+        thread_numb[j] = j;
+        // playing a bit with thread and thread_numb pointers...
+        pthread_create(&thread[j], // pthread_t *t
+                    NULL, // const pthread_attr_t *attr
+                    consumer, // void *(*start_routine) (void *)
+                    &thread_numb[j]);  // void *arg
+    }
+
+    for (int j = 0; j < NUMB_THREADS; j++)
+        pthread_join(thread[j], NULL);
  
     pthread_mutex_destroy(&buffer_mutex);
     sem_destroy(&full_sem);
     sem_destroy(&empty_sem);
+    if (!destroy_memory(shmid_index)) printf("cannot destroy shared memory %d.\n", shmid_index);
+    if (!destroy_memory(shmid_buffer)) printf("cannot destroy shared memory %d.\n", shmid_buffer);
  
     return 0;
 }
