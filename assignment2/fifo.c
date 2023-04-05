@@ -41,13 +41,17 @@ void insertqueue(print_job job) {
 }
  
 print_job dequeuebuffer() {
-    print_job empty_job = {0,0};
+    print_job job = {0,0};
     if (queue->buffer_index > 0) {
-        return queue->jobs[--queue->buffer_index];
+        job = queue->jobs[0];
+        for (int i = 1; i < queue->buffer_index; i++){
+            queue->jobs[i-1] = queue->jobs[i];
+        }
+        queue->buffer_index--;
     } else {
         printf("Buffer underflow\n");
     }
-    return empty_job;
+    return job;
 }
 
 void producer_process(){
@@ -92,6 +96,8 @@ void *consumer(void *thread_n){
         // there could be race condition here, that could cause
         //   buffer underflow error 
         sem_wait(buffer_mutex);
+
+        if (queue->buffer_index == 0) sem_post(buffer_mutex);
         job = dequeuebuffer();
         //printf("dequeue value\n");
         sem_post(buffer_mutex);
