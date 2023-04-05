@@ -20,7 +20,6 @@ typedef struct{
     print_job jobs[SIZE];
     int nextin;
     int nextout;
-    int buffer_index;
 } buffer_t;
 
 buffer_t *queue;
@@ -32,26 +31,24 @@ sem_t *empty_sem;
 int shmid, shmid2;
 double *average_wating;
 
-void insertqueue(print_job job) {
-    if (queue->buffer_index < SIZE) {
-        queue->jobs[queue->buffer_index++] = job;
+void insertqueue(print_job item) {
+    if (queue->nextout < SIZE) {
+        queue->jobs[queue->nextin] = item;
+        queue->nextin = (queue->nextin + 1) % SIZE;
     } else {
         printf("Buffer overflow\n");
     }
 }
  
 print_job dequeuebuffer() {
-    print_job job = {0,0};
-    if (queue->buffer_index > 0) {
-        job = queue->jobs[0];
-        for (int i = 1; i < queue->buffer_index; i++){
-            queue->jobs[i-1] = queue->jobs[i];
-        }
-        queue->buffer_index--;
+    print_job item = {0,0};
+    if (queue->nextout < SIZE) {
+        item = queue->jobs[queue->nextout];
+        queue->nextout = (queue->nextout + 1) % SIZE;
     } else {
-        printf("Buffer underflow\n");
+        printf("Buffer overflow\n");
     }
-    return job;
+    return item;
 }
 
 void producer_process(){
@@ -66,20 +63,15 @@ void producer_process(){
         job_size = rand() % 901 + 100; // range between 100 and 1000 bytes
 
         print_job job = {PID, job_size};
+        sem_wait(full_sem);
+        sem_wait(buffer_mutex); 
+        
+        while ((queue->nextin+1) % SIZE == queue->nextout);
 
-        sem_wait(full_sem); // sem=0: wait. sem>0: go and decrement it
-        /* possible race condition here. After this thread wakes up,
-           another thread could aqcuire mutex before this one, and add to list.
-           Then the list would be full again
-           and when this thread tried to insert to buffer there would be
-           a buffer overflow error */
-        //sem_wait(&lock);
-        sem_wait(buffer_mutex); // protecting critical section
-        //printf("enqueue buffer\n");
         insertqueue(job);
         sem_post(buffer_mutex);
-        //sem_post(&lock);
         sem_post(empty_sem); // post (increment) emptybuffer semaphore
+        
         printf("Producer %d from [parent] %d added %d to buffer\n", PID, getppid(), job_size);
     }
     time(&end);
@@ -92,16 +84,15 @@ void *consumer(void *thread_n){
     print_job job;
     while (1) {
         sem_wait(empty_sem);
-        //sem_wait(&lock);
-        // there could be race condition here, that could cause
-        //   buffer underflow error 
         sem_wait(buffer_mutex);
 
-        if (queue->buffer_index == 0) sem_post(buffer_mutex);
+        if (queue->nextin == 0 && queue->nextout == 0) 
+            sem_post(buffer_mutex);
+        while (queue->nextin == queue->nextout);
+
         job = dequeuebuffer();
-        //printf("dequeue value\n");
+
         sem_post(buffer_mutex);
-        //sem_post(&lock);
         sem_post(full_sem); // post (increment) fullbuffer semaphore
         printf("Consumer %d in %d dequeue <%d, %d> from buffer\n", gettid(), PID, job.userId, job.jobSize);
     }
@@ -163,7 +154,6 @@ int main(int argc, char **argv) {
 
     queue->nextin = 0;
     queue->nextout = 0;
-    queue->buffer_index = 0;
 
     signal(SIGINT, my_handler);
 
