@@ -61,17 +61,13 @@ void producer_process(){
     while (i++ < num_jobs) {
         random_delay();
         job_size = rand() % 901 + 100; // range between 100 and 1000 bytes
-
         print_job job = {PID, job_size};
         sem_wait(full_sem);
         sem_wait(buffer_mutex); 
-        
         while ((queue->nextin+1) % SIZE == queue->nextout);
-
         insertqueue(job);
         sem_post(buffer_mutex);
         sem_post(empty_sem); // post (increment) emptybuffer semaphore
-        
         printf("Producer %d from [parent] %d added %d to buffer\n", PID, getppid(), job_size);
     }
     time(&end);
@@ -134,6 +130,10 @@ void my_handler(int dummy){
 }
 
 int main(int argc, char **argv) {
+    if (argc < 3){
+        printf("ERROR! cannot find number of producers and consumers!\n");
+        exit(EXIT_FAILURE);
+    }
     int num_producers = atoi(argv[1]);
     int num_consumers = atoi(argv[2]);
 
@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
         if (pid == 0){
             srand(PID + i);
             producer_process();
-            exit(0);
+            exit(EXIT_SUCCESS);
         }
     }
 

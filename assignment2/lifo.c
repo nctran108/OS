@@ -18,8 +18,6 @@ typedef struct{
 
 typedef struct{
     print_job jobs[SIZE];
-    int nextin;
-    int nextout;
     int buffer_index;
 } buffer_t;
 
@@ -63,19 +61,11 @@ void producer_process(){
 
         print_job job = {PID, job_size};
 
-        sem_wait(full_sem); // sem=0: wait. sem>0: go and decrement it
-        /* possible race condition here. After this thread wakes up,
-           another thread could aqcuire mutex before this one, and add to list.
-           Then the list would be full again
-           and when this thread tried to insert to buffer there would be
-           a buffer overflow error */
-        //sem_wait(&lock);
-        sem_wait(buffer_mutex); // protecting critical section
-        //printf("enqueue buffer\n");
+        sem_wait(full_sem);
+        sem_wait(buffer_mutex);
         insertqueue(job);
         sem_post(buffer_mutex);
-        //sem_post(&lock);
-        sem_post(empty_sem); // post (increment) emptybuffer semaphore
+        sem_post(empty_sem);
         printf("Producer %d from [parent] %d added %d to buffer\n", PID, getppid(), job_size);
     }
     time(&end);
@@ -88,15 +78,10 @@ void *consumer(void *thread_n){
     print_job job;
     while (1) {
         sem_wait(empty_sem);
-        //sem_wait(&lock);
-        // there could be race condition here, that could cause
-        //   buffer underflow error 
         sem_wait(buffer_mutex);
         job = dequeuebuffer();
-        //printf("dequeue value\n");
         sem_post(buffer_mutex);
-        //sem_post(&lock);
-        sem_post(full_sem); // post (increment) fullbuffer semaphore
+        sem_post(full_sem);
         printf("Consumer %d in %d dequeue <%d, %d> from buffer\n", gettid(), PID, job.userId, job.jobSize);
     }
     pthread_exit(0);
@@ -137,6 +122,10 @@ void my_handler(int dummy){
 }
 
 int main(int argc, char **argv) {
+    if (argc < 3){
+        printf("ERROR! cannot find number of producers and consumers!\n");
+        exit(EXIT_FAILURE);
+    }
     int num_producers = atoi(argv[1]);
     int num_consumers = atoi(argv[2]);
 
@@ -155,8 +144,6 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    queue->nextin = 0;
-    queue->nextout = 0;
     queue->buffer_index = 0;
 
     signal(SIGINT, my_handler);
@@ -166,7 +153,7 @@ int main(int argc, char **argv) {
         if (pid == 0){
             srand(PID + i);
             producer_process();
-            exit(0);
+            exit(EXIT_SUCCESS);
         }
     }
 
@@ -174,8 +161,6 @@ int main(int argc, char **argv) {
     int thread_numb[num_consumers];
 
     for(int i = 0; i < num_consumers; i++){
-        // playing a bit with thread and thread_numb pointers...
-        
         thread_numb[i] = i;
         pthread_create(&consumerThread[i], // pthread_t *t
                     NULL, // const pthread_attr_t *attr
