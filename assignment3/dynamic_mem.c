@@ -31,6 +31,9 @@ struct block_meta *request_space(struct block_meta* last, size_t size){
     return block;
 }
 
+struct block_meta *get_block_ptr(void *ptr) {
+    return (struct block_meta *)ptr -1;
+}
 
 void *malloc(size_t size){
     struct block_meta *block;
@@ -56,10 +59,6 @@ void *malloc(size_t size){
         }
     }
     return block + 1;
-}
-
-struct block_meta *get_block_ptr(void *ptr) {
-    return (struct block_meta *)ptr -1;
 }
 
 void free(void *ptr){
