@@ -13,5 +13,6 @@ int main() {
     }
     printf("\n");
 
+    free(arr);
     return 0;
 }

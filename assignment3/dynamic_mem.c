@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <unistd.h>
+#include <string.h>
 #include "dynamic_mem.h"
+
+void *global_base = NULL;
 
 struct block_meta *find_free_block(struct block_meta **last, size_t size)
 {
