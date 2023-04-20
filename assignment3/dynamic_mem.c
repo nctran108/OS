@@ -61,6 +61,33 @@ void *malloc(size_t size){
     return block + 1;
 }
 
+void *realloc(void *ptr, size_t size) {
+    if (!ptr) {
+        return NULL;
+    }
+
+    struct block_meta * block_ptr = get_block_ptr(ptr);
+    if (block_ptr->size >= size) {
+        return ptr;
+    }
+    
+    void *new_ptr;
+    new_ptr = malloc(size);
+    if (!new_ptr) {
+        return NULL;
+    }
+    memcpy(new_ptr, ptr, block_ptr->size);
+    free(ptr);
+    return new_ptr;
+}
+
+void *calloc(size_t nelem, size_t elsize) {
+    size_t size = nelem * elsize;
+    void *ptr = malloc(size);
+    memset(ptr, 0, size);
+    return ptr;
+}
+
 void free(void *ptr){
     if (!ptr) {
         return;
