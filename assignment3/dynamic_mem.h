@@ -10,7 +10,7 @@ struct block_meta {
     int magic; //for debug
 };
 
-#define META_SIZE sizeof(struct  block_meta)
+#define META_SIZE sizeof(struct block_meta)
 
 struct block_meta *find_free_block(struct block_meta **last, size_t size);
 struct block_meta *request_space(struct block_meta* last, size_t size);
