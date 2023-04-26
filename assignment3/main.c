@@ -2,32 +2,42 @@
 #include <unistd.h>
 #include "dynamic_mem.h"
 
-int main() {   
-    void *heap_start;
+#define NUMPOINTERS 10
+int *ptr[NUMPOINTERS];
+
+void printHeapAddr(void *ptr){
     void *heap_end;
-    int *arr = malloc(sizeof(int) * 10);
-
-    struct block_meta *ptr = get_block_ptr(arr);   
-    heap_end =sbrk(0);
-    brk(heap_start);
-    printf("heap start address: %p\n", heap_start);
+    printf("heap start address: %p\n", ptr);
+    heap_end = sbrk(0);
     printf("heap end address %p\n", heap_end);
+}
 
-    printf("size = %ld\n", ptr->size);
-    if (ptr->free == 0)
-        printf("not free\n");
-
-    for(int i = 0; i < 10; i++){
-        arr[i] = i;
+void mallocPointers(size_t size){
+    for (int i = 0; i < NUMPOINTERS; i++){
+        ptr[i] = malloc(size);
+        printHeapAddr(ptr[i]);
     }
+}
 
-    for(int i = 0; i < 10; i++){
-        printf("%d ", arr[i]);
+void reallocPointers(size_t size){
+    printf("Call Realloc\n");
+    for (int i = 0; i < NUMPOINTERS; i++){
+        ptr[i] = realloc(ptr[i],size);
     }
-    printf("\n");
+    void *heap_end;
+    heap_end = sbrk(0);
+    printf("heap end address %p\n", heap_end);
+}
 
-    free(arr);
-    if (ptr->free == 1)
-        printf("freed\n");
+void freePointers(){
+    for (int i = 0; i < NUMPOINTERS; i++){
+        free(ptr[i]);
+    }
+}
+
+int main() {
+    mallocPointers(sizeof(int) * 10);
+    reallocPointers(20);
+    freePointers();
     return 0;
 }

@@ -16,7 +16,7 @@ struct block_meta *find_free_block(struct block_meta **last, size_t size)
 }
 
 struct block_meta *request_space(struct block_meta* last, size_t size){
-    struct block_meta*block;
+    struct block_meta* block;
     block = sbrk(0);
     void *request = sbrk(size + META_SIZE);
     assert((void*)block == request);
@@ -54,9 +54,12 @@ void *malloc(size_t size){
     } else {
         struct block_meta *last = global_base;
         block = find_free_block(&last, size);
-        if (!block) {
-            return NULL;
-        } else {
+        if (!block) { // fail to find free block
+            block = request_space(last, size);
+            if (!block) {
+                return NULL;
+            }
+        } else { // find free block
             block->free = 0;
             block->magic = 0x77777777;
         }
@@ -66,7 +69,7 @@ void *malloc(size_t size){
 
 void *realloc(void *ptr, size_t size) {
     if (!ptr) {
-        return NULL;
+        return malloc(size);
     }
 
     struct block_meta * block_ptr = get_block_ptr(ptr);
