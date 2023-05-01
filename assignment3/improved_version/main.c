@@ -84,26 +84,31 @@ void freePointers(){
 
 int main() {
     heap_start = sbrk(0);
+    printf("start heap address %p\n", heap_start);
 
     mallocPointers(sizeof(int)); 
     struct block_meta *block = get_block_ptr(ptr[0]); 
-    printMemorySize(block);
+    //printMemorySize(block);
     heap_end = sbrk(0);
+    printf("end heap address after malloc %p\n", heap_end);
     memoryLeak(block);
 
     freePointers();
-    printMemorySize(block);
+    //printMemorySize(block);
     heap_end = sbrk(0);
+    printf("end heap address after free %p\n", heap_end);
     memoryLeak(block);
 
     callocPointers(sizeof(int));
-    printMemorySize(block);
+    //printMemorySize(block);
     heap_end = sbrk(0);
+    printf("end heap address after calloc %p\n", heap_end);
     memoryLeak(block);
 
     reallocPointers(sizeof(int));
-    printMemorySize(block);
+    //printMemorySize(block);
     heap_end = sbrk(0);
+    printf("end heap address after realloc %p\n", heap_end);
     memoryLeak(block);
 
     return 0;
