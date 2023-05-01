@@ -36,6 +36,7 @@
   "C_Cpp_Runner.useAddressSanitizer": false,
   "C_Cpp_Runner.showCompilationTime": false,
   "files.associations": {
-    "dynamic_mem.h": "c"
+    "dynamic_mem.h": "c",
+    "stdbool.h": "c"
   }
 }
